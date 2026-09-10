@@ -37,7 +37,7 @@ Sun    digest        a weekly writeup, failures first; a human edits and merges
 Sun    audit         an adversarial pass over the week's merges looking for slop
 ```
 
-Each routine is a checked-in prompt in [`.claude/routines/`](.claude/routines/), run as a scheduled Claude Code agent. The routines can open issues and draft PRs. They cannot set a verdict, edit the ledger, or merge anything but dependency bumps. Every night each routine writes a report to [`reports/nights/`](reports/nights/), including the nights it got stuck.
+Times are Pacific. Each routine is a checked-in prompt in [`.claude/routines/`](.claude/routines/), run as a scheduled Claude Code cloud routine. The routines can open issues and draft PRs. They cannot set a verdict, edit the ledger, or merge anything but dependency bumps. Every night each routine writes a report to [`reports/nights/`](reports/nights/), including the nights it got stuck.
 
 ## What counts
 
