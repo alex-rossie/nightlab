@@ -7,7 +7,15 @@ The nightly loop is the product. The replication results are the exhaust.
 ## Scoreboard
 
 <!-- ledger:start -->
-**Night 0.** Nothing has run on the reference hardware yet. The baseline goes first, then the queue in `experiments/`.
+| Papers tested | Replicated | Partial | Failed | Inconclusive | Nights active |
+|---:|---:|---:|---:|---:|---:|
+| 0 | 0 | 0 | 0 | 0 | 1 |
+
+| | Experiment | Claim | Val loss | Δ vs baseline | Tok/s | Date | Run |
+|---|---|---|---:|---:|---:|---|---|
+| ⚪ | `baseline` | Reference run. A pre-norm decoder with RoPE, RMSNorm, SwiGLU, untied embeddings, AdamW. | 4.303 | — | 135,084 | 2026-09-10 | `5f6e26` |
+
+🟢 replicated · 🟡 partial · 🔴 failed · ⚫ inconclusive · ⚪ baseline · ⏳ awaiting review. Lower val loss is better. Every row is one run of exactly the stated budget on the stated hardware; full provenance is in `ledger/results.jsonl`.
 <!-- ledger:end -->
 
 ## The rule
@@ -76,6 +84,6 @@ docs/               budget, hardware, runner setup
 
 ## Status
 
-Night 0. The scaffold is complete, the baseline and the first queued experiment (Muon) are written, and no GPU run has been recorded. The first week's job is to run the baseline twice, confirm seed noise, and start the queue.
+Night 1. The baseline has run once on the reference hardware and is in the ledger. Next: a second baseline seed to measure noise, then the first queued experiment, Muon.
 
 MIT. Built by [Alex Rossie](https://github.com/alex-rossie) with Claude Code doing the night shift.
