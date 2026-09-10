@@ -1,0 +1,31 @@
+name: 0001-muon
+claim: Muon (orthogonalized momentum on hidden matrices, AdamW elsewhere) reaches lower loss than AdamW at equal wall clock.
+source: https://kellerjordan.github.io/posts/muon/
+seed: 1337
+model:
+  n_layer: 8
+  n_head: 8
+  n_embd: 512
+  block_size: 1024
+  attention: causal
+  mlp: swiglu
+  norm: rmsnorm
+optim:
+  name: muon
+  lr: 0.0006          # AdamW lr for embeddings, head, norms
+  weight_decay: 0.1
+  betas: [0.9, 0.95]
+  warmup_steps: 100
+  extra:
+    muon_lr: 0.02
+    muon_momentum: 0.95
+train:
+  batch_size: 32
+  seq_len: 1024
+  wall_seconds: 600
+  eval_every_seconds: 60
+  eval_batches: 20
+  compile: true
+  dtype: bfloat16
+data:
+  dataset: fineweb-edu

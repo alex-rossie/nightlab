@@ -1,0 +1,42 @@
+name: Experiment candidate
+description: A paper or release the radar thinks is worth testing at the budget.
+labels: [queued]
+body:
+  - type: input
+    id: source
+    attributes:
+      label: Source
+      placeholder: arXiv URL, blog post, or release
+    validations:
+      required: true
+  - type: input
+    id: claim
+    attributes:
+      label: Claim in one sentence
+    validations:
+      required: true
+  - type: textarea
+    id: diff
+    attributes:
+      label: Proposed change against experiments/baseline
+      description: One component or one config diff. If it needs more, split it.
+    validations:
+      required: true
+  - type: input
+    id: criterion
+    attributes:
+      label: Replication criterion
+      placeholder: "val loss ≥ 0.05 nats below baseline at 600 s"
+    validations:
+      required: true
+  - type: textarea
+    id: rubric
+    attributes:
+      label: Rubric scores
+      value: |
+        Testable at budget: /2
+        Isolatable: /2
+        Falsifiable: /2
+        Worth knowing: /2
+    validations:
+      required: true

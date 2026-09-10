@@ -1,0 +1,62 @@
+name: gpu-experiment
+# Runs the full-budget experiment for a PR on the self-hosted ROCm runner when
+# the `needs-gpu` label is applied. Posts the result as a PR comment and
+# uploads result.json. It never touches the ledger; a human does that on review.
+on:
+  pull_request:
+    types: [labeled]
+
+concurrency:
+  group: gpu
+  cancel-in-progress: false
+
+jobs:
+  run:
+    if: github.event.label.name == 'needs-gpu'
+    runs-on: [self-hosted, rocm]
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Find the experiment in this PR
+        id: find
+        run: |
+          set -e
+          base="${{ github.event.pull_request.base.sha }}"
+          dirs=$(git diff --name-only "$base"...HEAD -- experiments/ | grep '/config.yaml$' | xargs -r -n1 dirname | sort -u)
+          n=$(echo "$dirs" | grep -c . || true)
+          if [ "$n" != "1" ]; then echo "expected exactly one changed experiment, found $n: $dirs"; exit 1; fi
+          echo "dir=$dirs" >> "$GITHUB_OUTPUT"
+      - run: uv sync --extra rocm
+      - run: uv run nightlab data fineweb-edu --root "$NIGHTLAB_DATA"
+      - name: Train at full budget
+        run: |
+          uv run nightlab train "${{ steps.find.outputs.dir }}/config.yaml" --out runs/pr-${{ github.event.pull_request.number }} --quiet
+        env:
+          NIGHTLAB_DATA: ${{ env.NIGHTLAB_DATA }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: result-pr-${{ github.event.pull_request.number }}
+          path: runs/pr-${{ github.event.pull_request.number }}/
+      - name: Comment result
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          r=runs/pr-${{ github.event.pull_request.number }}/result.json
+          body=$(python3 - "$r" <<'PY'
+          import json, sys
+          r = json.load(open(sys.argv[1]))
+          print(f"**GPU run complete** · `{r['run_id']}`\n")
+          print("| val loss | tokens/s | steps | tokens | peak mem | wall | commit |")
+          print("|---:|---:|---:|---:|---:|---:|---|")
+          print(f"| {r['val_loss']:.4f} | {r['tokens_per_second']:,.0f} | {r['steps']} | {r['tokens']:,} | {r['peak_memory_gb']} GB | {r['wall_seconds']} s | `{r['commit'][:10]}` |")
+          print("\nCurve: " + ", ".join(f"{c['t']:.0f}s→{c['val_loss']:.3f}" for c in r['curve']))
+          print("\nReviewer: compare against the latest baseline in the ledger, set the verdict, then `uv run nightlab ledger-add result.json --verdict <v>`.")
+          PY
+          )
+          gh pr comment ${{ github.event.pull_request.number }} --body "$body"
+      - name: Swap label
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr edit ${{ github.event.pull_request.number }} --remove-label needs-gpu --add-label gpu-done

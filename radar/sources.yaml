@@ -1,0 +1,39 @@
+# Where the nightly radar looks. Keep this list short and opinionated.
+# Adding a source is a PR like any other.
+
+arxiv:
+  categories: [cs.CL, cs.LG]
+  lookback_days: 2
+  must_match_any:
+    - transformer
+    - attention
+    - optimizer
+    - pretraining
+    - "language model"
+    - "mixture of experts"
+    - diffusion language
+    - "test-time"
+    - scaling law
+  max_candidates: 40
+
+github_releases:
+  - KellerJordan/modded-nanogpt
+  - karpathy/nanochat
+  - deepseek-ai
+  - QwenLM
+  - MoonshotAI
+  - zai-org
+  - huggingface/transformers
+  - pytorch/pytorch
+
+blogs:
+  - https://kellerjordan.github.io/
+  - https://www.anthropic.com/research
+  - https://openai.com/research
+  - https://deepmind.google/research/
+  - https://huggingface.co/blog
+  - https://ai.meta.com/blog/
+
+huggingface_trending:
+  kinds: [models, papers]
+  top_n: 20
