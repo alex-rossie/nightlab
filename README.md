@@ -37,7 +37,7 @@ Sun    digest        a weekly writeup, failures first; a human edits and merges
 Sun    audit         an adversarial pass over the week's merges looking for slop
 ```
 
-Times are Pacific. Each routine is a checked-in prompt in [`.claude/routines/`](.claude/routines/), run as a scheduled Claude Code cloud routine. The routines can open issues and draft PRs. They cannot set a verdict, edit the ledger, or merge anything but dependency bumps. Every night each routine writes a report to [`reports/nights/`](reports/nights/), including the nights it got stuck.
+Times are Pacific. The human's side is a checked-in skill too, [`/lab`](.claude/skills/lab/SKILL.md): review the morning's PRs, run one locally if the runner is offline, and record a verdict after confirming it. Each routine is a checked-in prompt in [`.claude/routines/`](.claude/routines/), run as a scheduled Claude Code cloud routine. The routines can open issues and draft PRs. They cannot set a verdict, edit the ledger, or merge anything but dependency bumps. Every night each routine writes a report to [`reports/nights/`](reports/nights/), including the nights it got stuck.
 
 ## What counts
 
@@ -78,6 +78,7 @@ ledger/             results.jsonl + schema
 radar/              sources.yaml, rubric.md
 reports/            nights/ (agent logs) and weekly/ (human-edited digests)
 .claude/routines/   the six agent prompts
+.claude/skills/lab/ the reviewer's skill: review, run, verdict, baseline
 .github/workflows/  ci.yml on CPU, gpu-experiment.yml on the self-hosted runner
 docs/               budget, hardware, runner setup
 ```

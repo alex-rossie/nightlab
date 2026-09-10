@@ -13,6 +13,8 @@ These prompts are the lab's staff. Each one is a scheduled Claude Code agent. Th
 
 Cron is fixed in UTC, so the Pacific times drift one hour later when daylight saving ends.
 
+The human's counterpart is the `/lab` skill in `.claude/skills/lab/`, which handles review, local GPU runs, verdicts, and baseline refreshes.
+
 Cloud routines have no GPU. Anything that needs the reference hardware goes through the `needs-gpu` PR label, which the self-hosted runner picks up. See `docs/runner-setup.md`.
 
 Each routine is registered as a Claude Code cloud routine whose message is a one-line bootstrap: read CLAUDE.md, then follow the named prompt file in this directory. The prompt files are the source of truth; editing one changes the routine's behavior on its next run without re-registering. Register or inspect them from a Claude Code session with `/schedule`. To run one locally instead:

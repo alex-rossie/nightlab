@@ -12,16 +12,21 @@ An autonomous research lab in a repo. Agents read new LLM papers nightly, reimpl
 6. **Clean commits only.** The ledger schema rejects dirty or unknown commit hashes.
 7. **Failures are content.** A night where the implementer got stuck, or a paper that did not replicate, gets written up with the same care as a success. Say what you guessed and what you were unsure about.
 
+## The human's side
+
+The `/lab` skill in `.claude/skills/lab/` is the reviewer's tool: `review` the morning's PRs, `run N` an experiment on this machine when the runner is offline, `verdict N` to record a result after explicit confirmation, `baseline` to refresh the reference. It is the only path that writes verdicts.
+
 ## Layout
 
 ```
-nightlab/            library: config, model, components/, train, data, ledger, render, cli
+nightlab/            library: config, model, components/, train, data, ledger, render, review, cli
 experiments/         one dir per experiment, NNNN-slug, config.yaml + README.md
 ledger/              results.jsonl and its JSON schema
 radar/               sources and rubric for the nightly paper scan
 reports/nights/      one file per routine per night, including failures
 reports/weekly/      human-edited weekly digests
 .claude/routines/    the prompts for each scheduled agent
+.claude/skills/lab/  the reviewer's skill
 .github/workflows/   ci.yml (CPU) and gpu-experiment.yml (self-hosted ROCm runner)
 docs/                budget, hardware, runner setup
 ```
@@ -34,6 +39,8 @@ uv sync --extra rocm --extra data          # lab machine
 uv run nightlab train experiments/baseline/config.yaml
 uv run nightlab train experiments/baseline/config.yaml --smoke
 uv run nightlab data fineweb-edu
+uv run nightlab compare runs/<id>/result.json          # delta vs baseline + the written criterion
+uv run nightlab pr-comment runs/<id>/result.json       # the comment the runner posts
 uv run nightlab ledger-add runs/<id>/result.json --verdict replicated
 uv run nightlab ledger-validate
 uv run nightlab render --check

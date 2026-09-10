@@ -46,6 +46,13 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("ledger-validate", help="check the ledger for schema or provenance problems")
 
+    c = sub.add_parser("compare", help="compare a result.json against the ledger baseline")
+    c.add_argument("result")
+    c.add_argument("--json", action="store_true")
+
+    pc = sub.add_parser("pr-comment", help="render the PR comment for a result.json")
+    pc.add_argument("result")
+
     r = sub.add_parser("render", help="regenerate README tables from the ledger")
     r.add_argument("--check", action="store_true", help="fail if README is stale")
 
@@ -88,6 +95,19 @@ def main(argv: list[str] | None = None) -> int:
             print(pr, file=sys.stderr)
         print(f"{len(ledger.load())} entries, {len(problems)} problems")
         return 1 if problems else 0
+
+    if args.cmd == "compare":
+        from .review import compare, format_compare, load_result
+
+        c = compare(load_result(args.result))
+        print(json.dumps(c, indent=2) if args.json else format_compare(c))
+        return 0
+
+    if args.cmd == "pr-comment":
+        from .review import load_result, pr_comment
+
+        print(pr_comment(load_result(args.result)))
+        return 0
 
     if args.cmd == "render":
         from .render import render_readme

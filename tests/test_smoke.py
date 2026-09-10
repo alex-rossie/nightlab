@@ -80,3 +80,17 @@ def test_experiment_configs_load():
         cfg = ExperimentConfig.from_yaml(path)
         assert cfg.train.wall_seconds == 600, f"{path}: budget must be 600 s"
         assert cfg.name == path.parent.name
+
+
+def test_compare_against_checked_in_baseline():
+    from nightlab.review import compare, format_compare, pr_comment
+
+    entries = ledger.load()
+    if not entries:
+        pytest.skip("no ledger entries")
+    base = next(e for e in entries if e["verdict"] == "baseline")
+    c = compare(base)
+    assert c["baseline"]["run_id"] == base["run_id"]
+    assert c["delta_val_loss"] == 0
+    assert "val loss" in format_compare(c)
+    assert "GPU run complete" in pr_comment(base)

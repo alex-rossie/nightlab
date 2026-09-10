@@ -43,19 +43,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          r=runs/pr-${{ github.event.pull_request.number }}/result.json
-          body=$(python3 - "$r" <<'PY'
-          import json, sys
-          r = json.load(open(sys.argv[1]))
-          print(f"**GPU run complete** · `{r['run_id']}`\n")
-          print("| val loss | tokens/s | steps | tokens | peak mem | wall | commit |")
-          print("|---:|---:|---:|---:|---:|---:|---|")
-          print(f"| {r['val_loss']:.4f} | {r['tokens_per_second']:,.0f} | {r['steps']} | {r['tokens']:,} | {r['peak_memory_gb']} GB | {r['wall_seconds']} s | `{r['commit'][:10]}` |")
-          print("\nCurve: " + ", ".join(f"{c['t']:.0f}s→{c['val_loss']:.3f}" for c in r['curve']))
-          print("\nReviewer: compare against the latest baseline in the ledger, set the verdict, then `uv run nightlab ledger-add result.json --verdict <v>`.")
-          PY
-          )
-          gh pr comment ${{ github.event.pull_request.number }} --body "$body"
+          uv run nightlab pr-comment runs/pr-${{ github.event.pull_request.number }}/result.json > comment.md
+          gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
       - name: Swap label
         env:
           GH_TOKEN: ${{ github.token }}
