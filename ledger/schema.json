@@ -3,43 +3,191 @@
   "title": "nightlab ledger entry",
   "type": "object",
   "required": [
-    "run_id", "experiment", "claim", "source", "verdict", "commit", "seed", "hardware",
-    "torch", "started_at", "finished_at", "wall_seconds", "budget_seconds", "params",
-    "steps", "tokens", "tokens_per_second", "val_loss", "curve", "config"
+    "run_id",
+    "experiment",
+    "claim",
+    "source",
+    "verdict",
+    "commit",
+    "seed",
+    "hardware",
+    "torch",
+    "started_at",
+    "finished_at",
+    "wall_seconds",
+    "budget_seconds",
+    "params",
+    "steps",
+    "tokens",
+    "tokens_per_second",
+    "val_loss",
+    "curve",
+    "config"
   ],
   "properties": {
-    "run_id": { "type": "string", "minLength": 8 },
-    "experiment": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
-    "claim": { "type": "string" },
-    "source": { "type": "string" },
-    "verdict": { "enum": ["baseline", "replicated", "partial", "failed", "inconclusive", "pending"] },
-    "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$", "description": "Clean commit only. Dirty or unknown trees are rejected." },
-    "nightlab_version": { "type": "string" },
-    "seed": { "type": "integer" },
-    "hardware": { "type": "string", "minLength": 3 },
-    "torch": { "type": "string" },
-    "started_at": { "type": "string", "format": "date-time" },
-    "finished_at": { "type": "string", "format": "date-time" },
-    "wall_seconds": { "type": "number", "minimum": 1 },
-    "budget_seconds": { "type": "integer", "minimum": 1 },
-    "params": { "type": "integer", "minimum": 1 },
-    "steps": { "type": "integer", "minimum": 1 },
-    "tokens": { "type": "integer", "minimum": 1 },
-    "tokens_per_second": { "type": "number" },
-    "peak_memory_gb": { "type": ["number", "null"] },
-    "final_train_loss": { "type": ["number", "null"] },
-    "val_loss": { "type": "number" },
+    "run_id": {
+      "type": "string",
+      "minLength": 8
+    },
+    "experiment": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "claim": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
+    "verdict": {
+      "enum": [
+        "baseline",
+        "replicated",
+        "partial",
+        "failed",
+        "inconclusive",
+        "pending"
+      ]
+    },
+    "baseline_run_id": {
+      "type": "string",
+      "description": "The baseline this verdict was judged against, set by ledger-add."
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "Clean commit only. Dirty or unknown trees are rejected."
+    },
+    "nightlab_version": {
+      "type": "string"
+    },
+    "seed": {
+      "type": "integer"
+    },
+    "hardware": {
+      "type": "string",
+      "minLength": 3
+    },
+    "device": {
+      "enum": [
+        "cuda",
+        "cpu"
+      ]
+    },
+    "device_name": {
+      "type": "string"
+    },
+    "torch": {
+      "type": "string"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finished_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "wall_seconds": {
+      "type": "number",
+      "minimum": 1
+    },
+    "budget_seconds": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "compile_seconds": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Time to the end of the first training step, cold cache. Inside the budget."
+    },
+    "first_eval_seconds": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Duration of the first periodic eval, which includes the no_grad recompile. Inside the budget."
+    },
+    "params": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "steps": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "tokens": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "tokens_per_second": {
+      "type": "number"
+    },
+    "peak_memory_gb": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "final_train_loss": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "val_loss": {
+      "type": "number"
+    },
+    "final_eval_batches": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "data_tokens": {
+      "type": "object",
+      "properties": {
+        "train": {
+          "type": "integer"
+        },
+        "val": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "train",
+        "val"
+      ],
+      "additionalProperties": false
+    },
+    "data_fingerprint": {
+      "type": "string",
+      "description": "sha256 prefix over the size and first/last MiB of train.bin and val.bin."
+    },
     "curve": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["t", "step", "tokens", "val_loss"]
+        "required": [
+          "t",
+          "step",
+          "tokens",
+          "val_loss"
+        ]
       }
     },
-    "config": { "type": "object" },
-    "notes": { "type": "string" },
-    "reviewed_by": { "type": "string" },
-    "pr": { "type": "integer" }
+    "config": {
+      "type": "object"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "reviewed_by": {
+      "type": "string"
+    },
+    "pr": {
+      "type": "integer"
+    }
   },
   "additionalProperties": false
 }

@@ -7,7 +7,7 @@ The nightly loop is the product. The replication results are the exhaust.
 ## Scoreboard
 
 <!-- ledger:start -->
-| Papers tested | Replicated | Partial | Failed | Inconclusive | Nights active |
+| Runs judged | Replicated | Partial | Failed | Inconclusive | Nights active |
 |---:|---:|---:|---:|---:|---:|
 | 0 | 0 | 0 | 0 | 0 | 1 |
 
@@ -37,12 +37,13 @@ Sun    digest        a weekly writeup, failures first; a human edits and merges
 Sun    audit         an adversarial pass over the week's merges looking for slop
 ```
 
-Times are Pacific. The human's side is a checked-in skill too, [`/lab`](.claude/skills/lab/SKILL.md): review the morning's PRs, run one locally if the runner is offline, and record a verdict after confirming it. Each routine is a checked-in prompt in [`.claude/routines/`](.claude/routines/), run as a scheduled Claude Code cloud routine. The routines can open issues and draft PRs. They cannot set a verdict, edit the ledger, or merge anything but dependency bumps. Every night each routine writes a report to [`reports/nights/`](reports/nights/), including the nights it got stuck.
+Times are Pacific. The human's side is a checked-in skill too, [`/lab`](.claude/skills/lab/SKILL.md): review the morning's PRs, run one locally if the runner is offline, and record a verdict after confirming it. Each routine is a checked-in prompt in [`.claude/routines/`](.claude/routines/), run as a scheduled Claude Code cloud routine. The routines can open issues and draft PRs. They cannot set a verdict, edit the ledger, apply `needs-gpu`, or merge anything but dependency bumps. Every night each routine writes a report to [`reports/nights/`](reports/nights/), including the nights it got stuck.
 
 ## What counts
 
 - **The ledger is the truth.** [`ledger/results.jsonl`](ledger/results.jsonl) holds one line per run with commit hash, seed, hardware, torch version, wall time, throughput, and the full loss curve. The scoreboard above is rendered from it and CI fails if they disagree.
 - **Criterion before result.** Every experiment README states a numeric replication criterion before the GPU run. See [`experiments/0001-muon`](experiments/0001-muon/README.md) for the shape.
+- **Same conditions every run.** Every run compiles cold and is scored on the same fixed validation slice, so a result reflects the technique and not the state of a cache or a random batch draw. The ledger refuses runs off budget, off dataset, or off GPU, and refuses `replicated` without a second seed.
 - **Humans set verdicts.** `replicated`, `partial`, `failed`, or `inconclusive`. The agent proposes. A person decides, on the PR, with the runner's numbers in front of them.
 - **One change per experiment.** A new component in [`nightlab/components/`](nightlab/components/) or a config diff against [`experiments/baseline`](experiments/baseline/). Baseline components are never edited in place.
 
@@ -85,6 +86,6 @@ docs/               budget, hardware, runner setup
 
 ## Status
 
-Night 1. The baseline has run once on the reference hardware and is in the ledger. Next: a second baseline seed to measure noise, then the first queued experiment, Muon.
+Night 1. The baseline has run once on the reference hardware and is in the ledger. The evaluation changed since, so next: re-run the baseline under the fixed evaluation, two seeds, to measure noise; then the first queued experiment, Muon.
 
 MIT. Built by [Alex Rossie](https://github.com/alex-rossie) with Claude Code doing the night shift.

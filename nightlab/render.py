@@ -41,7 +41,7 @@ def build_section(entries: list[dict]) -> str:
     tested = sum(counts[v] for v in ("replicated", "partial", "failed", "inconclusive"))
     nights = len({e["finished_at"][:10] for e in entries})
     lines = [
-        "| Papers tested | Replicated | Partial | Failed | Inconclusive | Nights active |",
+        "| Runs judged | Replicated | Partial | Failed | Inconclusive | Nights active |",
         "|---:|---:|---:|---:|---:|---:|",
         f"| {tested} | {counts['replicated']} | {counts['partial']} | {counts['failed']} "
         f"| {counts['inconclusive']} | {nights} |",
@@ -49,16 +49,18 @@ def build_section(entries: list[dict]) -> str:
         "| | Experiment | Claim | Val loss | Δ vs baseline | Tok/s | Date | Run |",
         "|---|---|---|---:|---:|---:|---|---|",
     ]
-    by_hw = {}
+    by_id = {e["run_id"]: e for e in entries}
     for e in sorted(entries, key=lambda e: e["finished_at"], reverse=True):
-        hw = e["hardware"]
-        if hw not in by_hw:
-            by_hw[hw] = ledger.baseline_for(entries, hw)
+        # The baseline a verdict was judged against is pinned at ledger-add time;
+        # older rows without one fall back to the newest comparable baseline.
+        base = by_id.get(e.get("baseline_run_id", "")) or ledger.baseline_for(
+            entries, e["hardware"], like=e
+        )
         src = f" ([src]({e['source']}))" if e.get("source", "").startswith("http") else ""
         claim = (e.get("claim") or "").replace("|", "\\|")
         lines.append(
             f"| {VERDICT_ICON.get(e['verdict'], '?')} | `{e['experiment']}` "
-            f"| {claim}{src} | {e['val_loss']:.3f} | {_fmt_delta(e, by_hw[hw])} "
+            f"| {claim}{src} | {e['val_loss']:.3f} | {_fmt_delta(e, base)} "
             f"| {e['tokens_per_second']:,.0f} "
             f"| {e['finished_at'][:10]} | `{e['run_id'][-6:]}` |"
         )

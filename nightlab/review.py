@@ -27,7 +27,8 @@ def criterion_for(experiment: str) -> str:
 
 def compare(result: dict[str, Any]) -> dict[str, Any]:
     entries = ledger.load()
-    base = ledger.baseline_for(entries, result["hardware"])
+    base = ledger.baseline_for(entries, result["hardware"], like=result)
+    newest = ledger.baseline_for(entries, result["hardware"])
     out: dict[str, Any] = {
         "run_id": result["run_id"],
         "experiment": result["experiment"],
@@ -38,7 +39,11 @@ def compare(result: dict[str, Any]) -> dict[str, Any]:
         "clean_commit": bool(re.fullmatch(r"[0-9a-f]{40}", result["commit"])),
         "criterion": criterion_for(result["experiment"]),
         "baseline": None,
+        "baseline_problems": [],
     }
+    if base is None and newest is not None:
+        out["baseline_problems"] = [f"{newest['run_id']}: {p}"
+                                    for p in ledger.comparability_problems(result, newest)]
     if base is not None:
         out["baseline"] = {
             "run_id": base["run_id"],
@@ -63,7 +68,10 @@ def format_compare(c: dict[str, Any]) -> str:
         f"hardware   {c['hardware']}",
         f"provenance {prov}, {budget}",
     ]
-    if c["baseline"] is None:
+    if c["baseline"] is None and c["baseline_problems"]:
+        lines.append("baseline   NOT COMPARABLE; re-run the baseline before judging this run:")
+        lines += [f"           {p}" for p in c["baseline_problems"]]
+    elif c["baseline"] is None:
         lines.append("baseline   none on this hardware; this run cannot be compared")
     else:
         b = c["baseline"]
@@ -95,6 +103,10 @@ def pr_comment(result: dict[str, Any]) -> str:
         dl, dt = c["delta_val_loss"], c["delta_tokens_per_second_pct"]
         lines += ["", f"Against baseline `{c['baseline']['run_id'][-6:]}`: "
                       f"Δ val loss {dl:+.4f}, Δ tokens/s {dt:+.1f}%."]
+    elif c["baseline_problems"]:
+        lines += ["", "No comparable baseline in the ledger ("
+                      + "; ".join(c["baseline_problems"])
+                      + "). Re-run the baseline before judging this run."]
     if c["criterion"]:
         lines += ["", f"Criterion: {c['criterion']}"]
     lines += ["", "Reviewer: set the verdict, then "

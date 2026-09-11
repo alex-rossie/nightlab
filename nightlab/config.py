@@ -46,6 +46,7 @@ class TrainConfig:
     wall_seconds: int = 600
     eval_every_seconds: int = 60
     eval_batches: int = 20
+    final_eval_batches: int = 0  # 0 means the whole validation slice
     grad_clip: float = 1.0
     compile: bool = True
     dtype: str = "bfloat16"

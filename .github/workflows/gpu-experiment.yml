@@ -1,51 +1,107 @@
 name: gpu-experiment
-# Runs the full-budget experiment for a PR on the self-hosted ROCm runner when
-# the `needs-gpu` label is applied. Posts the result as a PR comment and
-# uploads result.json. It never touches the ledger; a human does that on review.
+# Runs the full-budget experiment for a PR on the self-hosted ROCm runner when a
+# human applies the `needs-gpu` label in the GitHub UI and approves the `gpu`
+# deployment. Posts the result as a PR comment and uploads result.json. It never
+# touches the ledger; a human does that on review.
+#
+# pull_request_target, not pull_request: GitHub then takes this file, the
+# trigger type, the job condition, and the environment from main, so a PR
+# cannot edit the gate away. The PR's code is checked out explicitly by head
+# SHA below and only runs once the label and the approval are both in. What
+# this does and does not protect against is written down in
+# docs/runner-setup.md; read it before registering a runner.
 on:
-  pull_request:
+  pull_request_target:
     types: [labeled]
 
-concurrency:
-  group: gpu
-  cancel-in-progress: false
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
   run:
-    if: github.event.label.name == 'needs-gpu'
+    if: >-
+      github.event.label.name == 'needs-gpu'
+      && github.event.pull_request.state == 'open'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.sender.type == 'User'
+      && github.event.sender.login == github.repository_owner
     runs-on: [self-hosted, rocm]
-    timeout-minutes: 40
+    environment: gpu
+    timeout-minutes: 45
+    env:
+      PR: ${{ github.event.pull_request.number }}
     steps:
       - uses: actions/checkout@v4
         with:
+          # The PR head, not the synthetic merge ref, so the commit stamped into
+          # result.json is one that exists on the PR and can be checked later.
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+          persist-credentials: false
       - name: Find the experiment in this PR
         id: find
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
         run: |
-          set -e
-          base="${{ github.event.pull_request.base.sha }}"
-          dirs=$(git diff --name-only "$base"...HEAD -- experiments/ | grep '/config.yaml$' | xargs -r -n1 dirname | sort -u)
+          set -eo pipefail
+          dirs=$(git diff --name-only "$BASE"...HEAD -- experiments/ | { grep '/config.yaml$' || true; } | xargs -r -n1 dirname | sort -u)
           n=$(echo "$dirs" | grep -c . || true)
           if [ "$n" != "1" ]; then echo "expected exactly one changed experiment, found $n: $dirs"; exit 1; fi
           echo "dir=$dirs" >> "$GITHUB_OUTPUT"
-      - run: uv sync --extra rocm
-      - run: uv run nightlab data fineweb-edu --root "$NIGHTLAB_DATA"
-      - name: Train at full budget
+      - name: Check the runner
         run: |
-          uv run nightlab train "${{ steps.find.outputs.dir }}/config.yaml" --out runs/pr-${{ github.event.pull_request.number }} --quiet
+          set -e
+          test -n "${NIGHTLAB_DATA:-}" || { echo "NIGHTLAB_DATA is not set: add it to the runner's .env and restart the service (docs/runner-setup.md)"; exit 1; }
+          test -n "${NIGHTLAB_HARDWARE:-}" || { echo "NIGHTLAB_HARDWARE is not set: add it to the runner's .env and restart the service (docs/runner-setup.md)"; exit 1; }
+          for f in train.bin val.bin; do
+            test -s "$NIGHTLAB_DATA/fineweb-edu/$f" || { echo "no tokenized FineWeb-Edu $f under $NIGHTLAB_DATA: prime it once by hand (docs/runner-setup.md)"; exit 1; }
+          done
+          # The checkout is cleaned on every run; keep the venv outside it.
+          echo "UV_PROJECT_ENVIRONMENT=$HOME/nightlab-venv" >> "$GITHUB_ENV"
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked --extra rocm
+      - run: uv run python -c "import torch; assert torch.cuda.is_available(), 'torch sees no GPU'"
+      - name: Train at full budget
+        id: train
+        # 600 s of training plus cold compile and the final evaluation; a hang
+        # fails this step so the failure report below runs.
+        timeout-minutes: 30
         env:
-          NIGHTLAB_DATA: ${{ env.NIGHTLAB_DATA }}
+          DIR: ${{ steps.find.outputs.dir }}
+        run: uv run nightlab train "$DIR/config.yaml" --out "runs/pr-$PR" --quiet
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: result-pr-${{ github.event.pull_request.number }}
           path: runs/pr-${{ github.event.pull_request.number }}/
+          if-no-files-found: ignore
       - name: Comment result
+        if: steps.train.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          uv run nightlab pr-comment runs/pr-${{ github.event.pull_request.number }}/result.json > comment.md
-          gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
+          uv run nightlab pr-comment "runs/pr-$PR/result.json" > comment.md
+          gh pr comment "$PR" --body-file comment.md
       - name: Swap label
+        if: always() && steps.train.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh pr edit ${{ github.event.pull_request.number }} --remove-label needs-gpu --add-label gpu-done
+        run: gh pr edit "$PR" --remove-label needs-gpu --add-label gpu-done
+      - name: Report failure
+        if: (failure() || cancelled()) && steps.train.outcome != 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FIND: ${{ steps.find.outcome }}
+          TRAIN: ${{ steps.train.outcome }}
+        run: |
+          {
+            echo "**GPU job did not complete**: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            echo "Step outcomes: find the experiment = $FIND, train = $TRAIN (skipped means a runner check failed before training; cancelled means the time limit hit)."
+            echo
+            echo "The partial log, if any, is in the run artifact. Failures are content: write it up in the night report."
+          } > comment.md
+          gh pr comment "$PR" --body-file comment.md || true
+          gh pr edit "$PR" --remove-label needs-gpu || true
+          if [ "$TRAIN" != "skipped" ]; then gh pr edit "$PR" --add-label stuck || true; fi

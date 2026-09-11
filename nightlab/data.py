@@ -10,6 +10,7 @@ so that training is a random slice of a memory-mapped array. Three sources:
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import numpy as np
@@ -90,6 +91,10 @@ class TokenSampler:
         self.batch_size = batch_size
         self.rng = np.random.default_rng(seed)
 
+    @property
+    def n_tokens(self) -> int:
+        return int(len(self.data))
+
     def __call__(self):
         import torch
 
@@ -98,3 +103,54 @@ class TokenSampler:
         x = np.stack([self.data[s : s + self.seq_len] for s in starts]).astype(np.int64)
         y = np.stack([self.data[s + 1 : s + 1 + self.seq_len] for s in starts]).astype(np.int64)
         return torch.from_numpy(x), torch.from_numpy(y)
+
+
+class FixedWindows:
+    """The validation set: consecutive non-overlapping windows from the front of a
+    token file, in a fixed order. The first k batches are the same tokens in every
+    run, whatever the eval cadence or batch count, so a curve point or a final
+    number is comparable across runs by construction."""
+
+    def __init__(self, path: Path, seq_len: int, batch_size: int):
+        self.data = np.memmap(path, dtype=np.uint16, mode="r")
+        self.seq_len = seq_len
+        self.batch_size = batch_size
+        self.n_batches = (len(self.data) - 1) // (seq_len * batch_size)
+        if self.n_batches == 0:
+            raise ValueError(f"{path} has {len(self.data)} tokens; the validation set needs at "
+                             f"least {seq_len * batch_size + 1} for one batch")
+
+    @property
+    def n_tokens(self) -> int:
+        return int(len(self.data))
+
+    def __len__(self) -> int:
+        return self.n_batches
+
+    def batches(self, n: int | None = None):
+        import torch
+
+        n = self.n_batches if not n else min(n, self.n_batches)
+        span = self.seq_len * self.batch_size
+        for i in range(n):
+            chunk = np.asarray(self.data[i * span : i * span + span + 1]).astype(np.int64)
+            x = torch.from_numpy(chunk[:-1].reshape(self.batch_size, self.seq_len))
+            y = torch.from_numpy(chunk[1:].reshape(self.batch_size, self.seq_len))
+            yield x, y
+
+
+def fingerprint(*paths: Path) -> str:
+    """sha256 over each file's name, size, and first and last MiB, 16 hex chars.
+    Cheap enough to run every time and enough to tell one tokenized slice from
+    another, so a result can say which bytes it was scored on."""
+    h = hashlib.sha256()
+    mib = 1 << 20
+    for p in paths:
+        size = p.stat().st_size
+        h.update(f"{p.name}:{size}:".encode())
+        with p.open("rb") as f:
+            h.update(f.read(mib))
+            if size > 2 * mib:
+                f.seek(size - mib)
+                h.update(f.read(mib))
+    return h.hexdigest()[:16]
